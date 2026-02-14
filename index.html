@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Pro Agent Studio</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={darkMode:'class'};</script>
+
+  <!-- Markdown + Highlight -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+
+  <!-- ZIP -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <!-- Your CSS -->
+  <link rel="stylesheet" href="./app.css?v=1" />
+</head>
+
+<body class="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+
+  <!-- Loader -->
+  <div id="loading" class="min-h-screen flex items-center justify-center px-6">
+    <div class="max-w-md w-full text-center">
+      <div class="mx-auto h-10 w-10 rounded-full border-4 border-zinc-200 border-t-zinc-900 dark:border-zinc-800 dark:border-t-zinc-100 animate-spin"></div>
+      <div class="mt-4 font-semibold">Loading App...</div>
+      <div id="loadNote" class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Preparing…</div>
+      <noscript><div class="mt-4 text-sm text-red-600">JavaScript is required.</div></noscript>
+    </div>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="min-h-screen flex">
+
+    <!-- overlay for mobile sidebar -->
+    <div id="overlay" class="fixed inset-0 z-40 hidden"><div class="absolute inset-0 backdrop"></div></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar"
+      class="fixed z-50 inset-y-0 left-0 w-80 max-w-[85vw] transform -translate-x-full md:translate-x-0 md:static
+             bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col">
+
+      <div class="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <div class="h-10 w-10 rounded-2xl bg-zinc-900 dark:bg-zinc-100"></div>
+          <div>
+            <div class="font-semibold leading-tight">Pro Agent Studio</div>
+            <div class="text-xs text-zinc-500 dark:text-zinc-400">Chat • Projects • Preview</div>
+          </div>
+        </div>
+        <button id="closeSidebar" class="md:hidden p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800">✕</button>
+      </div>
+
+      <div class="p-3 flex gap-2">
+        <button id="newChat" class="flex-1 px-3 py-2 rounded-2xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold hover:opacity-90 text-sm">+ New Chat</button>
+        <button id="settingsBtn" class="px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm">⚙</button>
+        <button id="darkBtn" class="px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm">🌙</button>
+      </div>
+
+      <div class="px-3 pb-3">
+        <input id="search" class="w-full px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950
+          focus:outline-none focus:ring-2 focus:ring-zinc-300 dark:focus:ring-zinc-700 text-sm" placeholder="Search chats/projects..." />
+      </div>
+
+      <div class="px-3 pb-2 flex gap-2">
+        <button id="tabChats" class="flex-1 px-3 py-2 rounded-2xl text-sm font-semibold bg-zinc-100 dark:bg-zinc-800">Chats</button>
+        <button id="tabProjects" class="flex-1 px-3 py-2 rounded-2xl text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800">Projects</button>
+      </div>
+
+      <div id="listChats" class="flex-1 overflow-auto px-2 pb-2"></div>
+      <div id="listProjects" class="hidden flex-1 overflow-auto px-2 pb-2"></div>
+
+      <div class="p-3 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400">
+        LocalStorage • ZIP Export • Live Preview
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 min-h-screen flex flex-col md:flex-row">
+
+      <!-- Center -->
+      <section id="center" class="flex-1 min-h-screen flex flex-col">
+
+        <header class="sticky top-0 z-30 bg-zinc-50/90 dark:bg-zinc-950/90 backdrop-blur border-b border-zinc-200 dark:border-zinc-800">
+          <div class="px-3 md:px-6 py-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2 min-w-0">
+              <button id="openSidebar" class="md:hidden p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800">☰</button>
+              <div class="min-w-0">
+                <div id="chatTitle" class="font-semibold truncate">New chat</div>
+                <div class="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                  Model: <span id="modelLabel">deepseek/deepseek-r1:free</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap justify-end">
+              <button id="systemBtn" class="px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm">🧠 System</button>
+              <button id="builderBtn" class="px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm">🧱 Builder</button>
+              <button id="togglePreview" class="px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm">👁 Preview</button>
+              <button id="exportZip" class="px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm">📦 ZIP</button>
+              <button id="clearChat" class="px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm">🧹 Clear</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="flex-1 min-h-0">
+          <div id="messages" class="h-full overflow-auto px-3 md:px-6 py-6 space-y-4">
+            <div id="empty" class="py-16 text-center text-zinc-500 dark:text-zinc-400">
+              <div class="text-2xl font-semibold text-zinc-800 dark:text-zinc-200">Pro Agent Studio</div>
+              <div class="mt-2 text-sm">Upload files, ask AI to build projects, preview live, export ZIP.</div>
+              <div class="mt-3 text-sm">
+                Tip: Ask AI:
+                <span class="mono bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-xl">Output files using ```file path``` blocks</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="sticky bottom-0 z-30 safe-b bg-zinc-50/95 dark:bg-zinc-950/95 backdrop-blur border-t border-zinc-200 dark:border-zinc-800">
+          <div class="px-3 md:px-6 py-3">
+
+            <div id="attachTray" class="hidden mb-2 p-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-xs font-semibold text-zinc-600 dark:text-zinc-300">Attachments</div>
+                <div class="flex gap-2">
+                  <button id="addToProject" class="text-xs px-2 py-1 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800">Add to Project</button>
+                  <button id="clearAttach" class="text-xs px-2 py-1 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800">Clear</button>
+                </div>
+              </div>
+              <div id="attachList" class="mt-2 flex flex-wrap gap-2"></div>
+            </div>
+
+            <div class="flex items-end gap-2">
+              <div class="flex flex-col gap-2">
+                <button id="attachBtn" class="p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800" title="Attach files">📎</button>
+                <button id="micBtn" class="p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800" title="Voice to text (Chrome)">🎙</button>
+              </div>
+
+              <div class="flex-1">
+                <div class="relative">
+                  <textarea id="input" rows="1"
+                    class="w-full resize-none px-4 py-3 pr-24 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900
+                    focus:outline-none focus:ring-2 focus:ring-zinc-300 dark:focus:ring-zinc-700 text-sm leading-5 max-h-40 overflow-auto"
+                    placeholder="Message... (Drag & drop files anywhere)"></textarea>
+
+                  <button id="ttsBtn"
+                    class="absolute right-2 bottom-2 px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm"
+                    title="Auto speak AI">🔊</button>
+
+                  <button id="stopBtn"
+                    class="hidden absolute right-14 bottom-2 px-3 py-2 rounded-2xl text-xs font-semibold bg-red-600 text-white hover:opacity-90">Stop</button>
+                </div>
+
+                <div class="mt-2 text-xs text-zinc-500 dark:text-zinc-400 flex flex-wrap gap-x-3 gap-y-1">
+                  <span>Enter = send • Shift+Enter = newline</span>
+                  <span id="micHint">Mic: ready</span>
+                  <span id="ttsHint">TTS: off</span>
+                  <span>Streaming: on</span>
+                </div>
+              </div>
+
+              <button id="send"
+                class="shrink-0 px-4 py-3 rounded-2xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold text-sm hover:opacity-90">
+                Send
+              </button>
+            </div>
+
+            <div id="status" class="mt-2 text-xs text-zinc-500 dark:text-zinc-400"></div>
+
+            <input id="fileInput" type="file" class="hidden" multiple />
+          </div>
+        </footer>
+      </section>
+
+      <div id="splitHandle" class="hidden md:block w-2 border-l border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 splitHandle"></div>
+
+      <!-- Right panel -->
+      <aside id="rightPanel" class="hidden md:flex w-[42%] max-w-[720px] border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex-col">
+        <div class="p-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="font-semibold text-sm truncate">Project Workspace</div>
+            <div class="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+              Active project: <span id="projectLabel">None</span>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button id="newProject" class="px-3 py-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm">+ Project</button>
+            <button id="publishHelp" class="px-3 py-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm">🚀 Publish</button>
+          </div>
+        </div>
+
+        <div class="p-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
+          <div class="flex gap-2 flex-wrap">
+            <button id="saveFile" class="px-3 py-2 rounded-2xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold text-sm hover:opacity-90">Save</button>
+            <button id="reloadPreview" class="px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm">Reload</button>
+            <button id="downloadFile" class="px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm">⬇ File</button>
+          </div>
+          <div class="text-xs text-zinc-500 dark:text-zinc-400">
+            AI files: <span class="mono">```file path```</span>
+          </div>
+        </div>
+
+        <div class="flex-1 min-h-0 flex">
+          <div class="w-56 border-r border-zinc-200 dark:border-zinc-800 overflow-auto p-2">
+            <div class="flex items-center justify-between gap-2 px-2 py-2">
+              <div class="text-xs font-semibold text-zinc-600 dark:text-zinc-300">Files</div>
+              <button id="addFile" class="text-xs px-2 py-1 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800">+ File</button>
+            </div>
+            <div id="fileTree" class="space-y-1"></div>
+          </div>
+
+          <div class="flex-1 min-h-0 flex flex-col">
+            <div class="p-2 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
+              <div class="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                Editing: <span id="editingPath" class="mono">—</span>
+              </div>
+              <div class="flex gap-2">
+                <button id="toggleEditor" class="text-xs px-2 py-1 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800">Editor</button>
+                <button id="toggleLive" class="text-xs px-2 py-1 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800">Preview</button>
+              </div>
+            </div>
+
+            <div class="flex-1 min-h-0">
+              <textarea id="editor" class="w-full h-full p-3 bg-white dark:bg-zinc-950 text-sm mono outline-none border-0"></textarea>
+              <iframe id="preview" class="hidden w-full h-full bg-white"
+                sandbox="allow-scripts allow-forms allow-modals allow-popups"
+                referrerpolicy="no-referrer"></iframe>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Settings modal -->
+    <div id="settings" class="fixed inset-0 z-[80] hidden">
+      <div class="absolute inset-0 backdrop"></div>
+      <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl overflow-hidden">
+          <div class="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+            <div class="font-semibold">Settings</div>
+            <button data-close="settings" class="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800">✕</button>
+          </div>
+          <div class="p-4 space-y-4">
+            <div>
+              <label class="text-sm font-semibold">OpenRouter API Key</label>
+              <input id="apiKey" type="password" class="mt-1 w-full px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950" placeholder="sk-or-..." />
+            </div>
+            <div>
+              <label class="text-sm font-semibold">Model</label>
+              <input id="model" class="mt-1 w-full px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950" value="deepseek/deepseek-r1:free" />
+            </div>
+            <div class="border-t border-zinc-200 dark:border-zinc-800 pt-4">
+              <div class="font-semibold text-sm">Audio</div>
+              <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="text-sm font-semibold">Mic language</label>
+                  <select id="micLang" class="mt-1 w-full px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+                    <option value="bn-BD">বাংলা (bn-BD)</option>
+                    <option value="bn-IN">বাংলা (bn-IN)</option>
+                    <option value="en-US">English (en-US)</option>
+                    <option value="en-GB">English (en-GB)</option>
+                    <option value="hi-IN">Hindi (hi-IN)</option>
+                  </select>
+                </div>
+                <label class="flex items-end gap-2 text-sm">
+                  <input id="autoTTS" type="checkbox" class="h-4 w-4">
+                  Auto Speak AI (TTS)
+                </label>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <button id="saveSettings" class="px-3 py-2 rounded-2xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold">Save</button>
+              <button data-close="settings" class="px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- System modal -->
+    <div id="system" class="fixed inset-0 z-[80] hidden">
+      <div class="absolute inset-0 backdrop"></div>
+      <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="w-full max-w-2xl rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl overflow-hidden">
+          <div class="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+            <div class="font-semibold">System Prompt</div>
+            <button data-close="system" class="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800">✕</button>
+          </div>
+          <div class="p-4 space-y-3">
+            <textarea id="systemText" rows="10" class="w-full px-3 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-sm"
+              placeholder="You are an advanced agent..."></textarea>
+            <div class="grid grid-cols-2 gap-3">
+              <button id="saveSystem" class="px-3 py-2 rounded-2xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold">Save</button>
+              <button data-close="system" class="px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Builder modal -->
+    <div id="builder" class="fixed inset-0 z-[80] hidden">
+      <div class="absolute inset-0 backdrop"></div>
+      <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="w-full max-w-2xl rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl overflow-hidden">
+          <div class="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+            <div class="font-semibold">Project Builder Mode</div>
+            <button data-close="builder" class="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800">✕</button>
+          </div>
+          <div class="p-4 text-sm text-zinc-700 dark:text-zinc-200">
+            Ask AI to output files like:
+            <div class="mt-2 p-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 mono text-xs">
+```file index.html
+<!doctype html>
+<html>...</html>
