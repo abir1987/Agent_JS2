@@ -1,1 +1,9 @@
-body { ... }
+/* app.css */
+#app { display:none; }
+.safe-b { padding-bottom: env(safe-area-inset-bottom); }
+.backdrop { background: rgba(0,0,0,.35); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+pre, code { white-space: pre-wrap; word-break: break-word; }
+.splitHandle { cursor: col-resize; }
+.dropGlow { outline:2px dashed rgba(99,102,241,.9); outline-offset:2px; }
+
